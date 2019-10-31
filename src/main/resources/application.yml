@@ -1,0 +1,84 @@
+
+#management:
+#  endpoints:
+#    web.exposure.include: *
+
+server:
+  port: 8769
+#jwt config
+JWT:
+  jwt-key: xxxxdev
+  token-expiration-time: 86400  #one day 单位：seconds
+  token-prefix: 'Beerer '
+  request-user-key: userSysId
+
+#服务名
+spring:
+  application:
+    name: server-gateway
+  #spring cloud 配置,这里只有gateway
+  cloud:
+    gateway:
+      discovery:
+          locator:
+            enabled: false
+            #使用小写serviceId
+            lowerCaseServiceId: true
+      #全局filter
+      default-filters:
+           - StripPrefix=1
+
+      #??? 去掉请求ws时会出现 Invalid Upgrade  参考https://github.com/spring-cloud/spring-cloud-gateway/issues/209
+      filter:
+        remove-non-proxy-headers:
+          headers:
+          - dummy
+      routes:
+        # id唯一值,默认为uuid
+        - id:  miniprogram
+        #lb代表从注册中心获取服务
+          uri: lb://server-video
+          #可以配置多个
+          predicates:
+          # 路径匹配  包含/miniprogram/**的通通路由到视频服务
+          - Path=/miniprogram/**
+        - id: operation
+          uri: lb://server-doctor
+          predicates:
+          - Path=/operation/**
+        - id: operation-ws
+          uri: lb:ws://server-doctor
+#ws://localhost:8769/operation-ws + /websocket/99
+          predicates:
+          - Path=/operation-ws/**
+        - id: operation-ws
+          uri: lb:ws://server-video
+          predicates:
+          - Path=/miniprogram-ws/**
+#        - id: wx-login
+#          uri: lb://server-video
+#          predicates:
+#          - Path=/miniprogram/account/testLogin;/miniprogram/account/wxGrantLogin
+#          filters:
+#          - AddTokenFilter
+#        - id: doctor-login
+#          uri: lb://server-doctor
+#          predicates:
+#          - Path=/operation/user/login;
+#          filters:
+#          - AddTokenFilter
+#          - GetResonseFilter
+
+
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+#  instance:
+#      preferIpAddress: false
+#拦截白名单
+interceptor:
+  auth-exclude-uris: /operation/user/login;/miniprogram/account/wxGrantLogin;/miniprogram/account/testLogin;/miniprogram/order/buy;/miniprogram/order/notify;/operation/upload/image/*;/miniprogram/account/accesstoken;/miniprogram/swagger-ui.html;/miniprogram/webjars/springfox-swagger-ui/*;/miniprogram/swagger-resources/*;/miniprogram/v2/api-docs/*;
+  give-token-uris: /operation/user/login;
+  wxgive-token-uris: /miniprogram/account/wxGrantLogin;/miniprogram/account/testLogin;
